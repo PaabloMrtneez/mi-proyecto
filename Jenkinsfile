@@ -3,18 +3,17 @@ pipeline {
     stages {
         stage('Build') {
             steps {
-                git 'https://github.com/PaabloMrtneez/mi-proyecto.git'
-                bat  'echo "Construyendo..."'
+                sh 'echo "Construyendo..."'
             }
         }
         stage('Test') {
             steps {
-                bat  'echo "Ejecutando pruebas..."'
+                sh 'echo "Ejecutando pruebas..."'
             }
         }
         stage('Deploy') {
             steps {
-                bat 'echo "Desplegando..."'
+                sh 'echo "Desplegando..."'
             }
         }
     }
