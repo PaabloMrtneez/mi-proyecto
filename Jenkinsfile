@@ -3,7 +3,7 @@ pipeline {
     stages {
         stage('Build') {
             steps {
-                git 'https://github.com/tu-usuario/mi-proyecto.git'
+                git 'https://github.com/PaabloMrtneez/mi-proyecto.git'
                 bat  'echo "Construyendo..."'
             }
         }
