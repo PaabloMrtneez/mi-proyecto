@@ -1,29 +1,47 @@
 pipeline {
   agent any
   stages {
-    stage('Checkout') {
-      steps { checkout scm }
-    }
+    stage('Checkout') { steps { checkout scm } }
 
     stage('Detect Python') {
       steps {
         script {
-          // Intenta obtener la ruta de python con `where`
+          // 1) try where python
           def out = bat(script: 'where python', returnStdout: true).trim()
-          if (!out) {
-            error "Python no encontrado en el PATH del agente. Instala Python o añade su carpeta a PATH."
+          if (out) {
+            env.PYTHON = out.split("\\r?\\n")[0].trim()
+          } else {
+            // 2) try py launcher (py -3)
+            def pyOut = bat(script: 'py -3 -c "import sys;print(sys.executable)"', returnStdout: true).trim()
+            if (pyOut) {
+              env.PYTHON = pyOut.split("\\r?\\n")[0].trim()
+            } else {
+              // 3) check a couple of common locations (Program Files)
+              def candidates = [
+                'C:\\\\Program Files\\\\Python310\\\\python.exe',
+                'C:\\\\Program Files (x86)\\\\Python310\\\\python.exe',
+                'C:\\\\Program Files\\\\Python39\\\\python.exe'
+              ]
+              def found = ''
+              for (c in candidates) {
+                // evaluate existence
+                def check = bat(script: "if exist \"${c}\" (echo FOUND) else (echo )", returnStdout: true).trim()
+                if (check == 'FOUND') { found = c; break }
+              }
+              if (found) {
+                env.PYTHON = found
+              } else {
+                error "Python no encontrado en el agente. Instala Python, añadelo al PATH del sistema, o configura Jenkins para usar un usuario con Python."
+              }
+            }
           }
-          // `where` puede devolver varias líneas; nos quedamos con la primera
-          def first = out.split("\\r?\\n")[0].trim()
-          env.PYTHON = first
-          echo "Usando python: ${env.PYTHON}"
+          echo "Using python: ${env.PYTHON}"
         }
       }
     }
 
     stage('Setup venv and install deps') {
       steps {
-        // Usamos la ruta completa a python para crear venv y pip
         bat """
         \"${env.PYTHON}\" -m venv venv
         call venv\\Scripts\\activate
@@ -37,22 +55,18 @@ pipeline {
       steps {
         bat """
         call venv\\Scripts\\activate
-        mkdir reports 2>nul || echo reports exists
+        if not exist reports mkdir reports
         python -m pytest --junitxml=reports\\results.xml
         """
       }
     }
 
     stage('Publish results') {
-      steps {
-        junit 'reports\\results.xml'
-      }
+      steps { junit 'reports\\results.xml' }
     }
   }
 
   post {
-    always {
-      archiveArtifacts artifacts: 'reports/**', allowEmptyArchive: true
-    }
+    always { archiveArtifacts artifacts: 'reports/**', allowEmptyArchive: true }
   }
 }
