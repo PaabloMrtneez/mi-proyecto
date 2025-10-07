@@ -1,28 +1,11 @@
 pipeline {
-  agent {
-    docker { image 'python:3.11' } // el contenedor con python
-  }
+  agent { docker { image 'python:3.11' } }
   stages {
-    stage('Checkout') {
-      steps { checkout scm }
-    }
-    stage('Install deps') {
+    stage('Tests') {
       steps {
         bat 'pip install -r requirements.txt'
+        bat 'pytest --junitxml=reports/results.xml'
       }
-    }
-    stage('Run tests') {
-      steps {
-        bat 'mkdir -p reports && pytest --junitxml=reports/results.xml'
-      }
-    }
-    stage('Publish results') {
-      steps { junit 'reports/results.xml' }
-    }
-  }
-  post {
-    always {
-      archiveArtifacts artifacts: 'reports/**', allowEmptyArchive: true
     }
   }
 }
